@@ -402,20 +402,32 @@ function freshData(){
 }
 
 // ─── STORAGE API ──────────────────────────────────────────────────
+const API = 'https://script.google.com/macros/s/AKfycbzKiCI4I1cCsSrwenkDXeZzuUWu8EQkNC9D7zrlIDAax5kDlerqYVHctrvcH2GURGfqyQ/exec';
+
+async function apiGet(params){
+  const url = API + '?' + new URLSearchParams(params);
+  const r = await fetch(url);
+  return r.json();
+}
+async function apiPost(body){
+  const r = await fetch(API, {method:'POST', body: JSON.stringify(body)});
+  return r.json();
+}
+
 async function saveClub(key, data){
-  try{ await window.storage.set(key, JSON.stringify(data), true); return true; }
+  try{ const r = await apiPost({action:'save', key, data}); return !!r.ok; }
   catch(e){ console.error('Save error',e); return false; }
 }
 async function loadClub(key){
-  try{ const r=await window.storage.get(key, true); return r?JSON.parse(r.value):null; }
+  try{ const r = await apiGet({action:'get', key}); return r.data||null; }
   catch(e){ return null; }
 }
 async function deleteClub(key){
-  try{ await window.storage.delete(key, true); return true; }
+  try{ const r = await apiPost({action:'delete', key}); return !!r.ok; }
   catch(e){ return false; }
 }
 async function listClubs(){
-  try{ const r=await window.storage.list('club:', true); return r?r.keys:[]; }
+  try{ const r = await apiGet({action:'list'}); return (r.clubs||[]).map(c=>c.key); }
   catch(e){ return []; }
 }
 
@@ -559,25 +571,24 @@ async function showList(){
   if(cvChart){cvChart.destroy();cvChart=null;}
   if(cmChart){cmChart.destroy();cmChart=null;}
   document.getElementById('list-date').textContent=new Date().toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
-  const keys=await listClubs();
+  // Fetch full list with summaries directly
+  let clubs = [];
+  try{
+    const r = await apiGet({action:'list'});
+    clubs = r.clubs || [];
+  } catch(e){ clubs = []; }
+  clubs.sort((a,b)=>new Date(b.savedAt||0)-new Date(a.savedAt||0));
   const wrap=document.getElementById('club-cards-wrap');
 
-  if(keys.length===0){
+  if(clubs.length===0){
     wrap.innerHTML=`<div class="empty-state"><h3>No hay clubs todavía</h3><p>Cuando un franquiciado envíe sus datos aparecerán aquí.</p></div>`;
     show('vlist');
     return;
   }
 
-  const clubs=[];
-  for(const k of keys){
-    const d=await loadClub(k);
-    if(d) clubs.push(d);
-  }
-  clubs.sort((a,b)=>new Date(b.savedAt||0)-new Date(a.savedAt||0));
-
   wrap.innerHTML=`<div class="club-cards">${clubs.map(c=>{
-    const tot=allTot(c);
-    const fm=filledM(c);
+    const tot=c.summary||{ing:0,gas:0,ebt:0};
+    const fm=0;
     const date=c.savedAt?new Date(c.savedAt).toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'}):'—';
     const mrg=tot.ing>0?(tot.ebt/tot.ing*100):0;
     return`<div class="club-card" onclick="openClub('${c.key}')">
@@ -713,8 +724,7 @@ async function init(){
   show('vloading');
   D = freshData();
   buildTable();
-  // Small delay to let storage API initialize
-  await new Promise(r=>setTimeout(r,400));
+  await new Promise(r=>setTimeout(r,100));
   show('vf');
 }
 
