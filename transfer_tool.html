@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis de Rentabilidad · Brooklyn Fitboxing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bk:#0a0a0a;--wh:#fafaf8;--yw:#FFCC00;--yw2:#d4a800;
+  --gr:#9a999e;--gl:#f2f1eb;--gm:#dddcd6;--gd:#3a3a38;
+  --re:#d93636;--gn:#1a9e6e;--gn2:#0d7a52;
+  --tx:#1a1a18;--tm:#6b6b68;--bd:#e2e1da;
+  --r:8px;--rl:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--wh);color:var(--tx);font-size:14px;line-height:1.5;min-height:100vh}
+
+/* HEADER */
+.hd{background:var(--bk);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;border-bottom:2px solid var(--yw)}
+.hd-logo{display:flex;align-items:baseline;gap:5px}
+.hd-bk{font-weight:700;font-size:15px;color:#fff;letter-spacing:.08em;text-transform:uppercase}
+.hd-ft{font-weight:700;font-size:15px;color:var(--yw);letter-spacing:.08em;text-transform:uppercase}
+.hd-sep{color:var(--gd);margin:0 5px;font-size:11px}
+.hd-tr{color:var(--gr);font-size:12px;letter-spacing:.04em}
+.hd-right{display:flex;align-items:center;gap:10px}
+#admin-btn{background:transparent;border:1px solid var(--gd);color:var(--gr);font-size:11px;padding:5px 14px;border-radius:20px;cursor:pointer;font-family:'DM Mono',monospace;transition:all .2s;letter-spacing:.04em}
+#admin-btn:hover{border-color:var(--yw);color:var(--yw)}
+.badge{display:none;background:var(--yw);color:var(--bk);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace}
+
+.main{max-width:1100px;margin:0 auto;padding:36px 20px 80px}
+
+/* VIEWS */
+#vf,#va,#vlist{display:none}
+
+/* ── LOADING ── */
+#vloading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px}
+.spinner{width:32px;height:32px;border:3px solid var(--gm);border-top-color:var(--yw);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--tm);font-family:'DM Mono',monospace}
+
+/* ── FORM VIEW ── */
+.fi-head{margin-bottom:28px}
+.fi-head h1{font-size:22px;font-weight:600;color:var(--bk);margin-bottom:6px;letter-spacing:-.02em}
+.fi-head p{color:var(--tm);font-size:14px;max-width:520px;line-height:1.65}
+.club-row{display:flex;align-items:center;gap:16px;background:var(--gl);border-radius:var(--rl);padding:18px 22px;margin-bottom:24px}
+.club-row label{font-size:11px;color:var(--tm);white-space:nowrap;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.club-row input{flex:1;border:none;background:transparent;font-size:18px;font-weight:600;color:var(--bk);font-family:'DM Sans',sans-serif;outline:none;border-bottom:2px solid var(--gm);padding-bottom:2px;transition:border-color .2s}
+.club-row input:focus{border-color:var(--yw)}
+.club-row input::placeholder{color:var(--gm);font-weight:400}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:16px;background:#fff}
+table{border-collapse:collapse;width:100%;min-width:860px}
+thead th{background:var(--bk);color:#fff;font-size:11px;font-family:'DM Mono',monospace;font-weight:500;padding:9px 7px;text-align:right;white-space:nowrap;letter-spacing:.04em}
+thead th:first-child{text-align:left;padding-left:16px;min-width:190px;position:sticky;left:0;z-index:10;background:var(--bk)}
+thead th.th-total{background:var(--yw);color:var(--bk);font-weight:700}
+tbody tr.section-row td{background:var(--gl);font-size:10px;font-weight:600;color:var(--tm);letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;padding:7px 16px;border-top:1px solid var(--bd)}
+tbody tr.data-row td{border-bottom:1px solid var(--bd)}
+tbody tr.data-row:last-child td{border-bottom:none}
+tbody tr.data-row td.row-label{padding:0 8px 0 14px;font-size:13px;color:var(--tx);white-space:nowrap;position:sticky;left:0;background:#fff;border-right:1px solid var(--bd);z-index:5}
+tbody tr.data-row:hover td.row-label{background:#fafaf3}
+td.ci{padding:0}
+td.ci input{width:100%;border:none;background:transparent;font-size:13px;font-family:'DM Mono',monospace;color:var(--bk);text-align:right;padding:8px 7px;outline:none;transition:background .15s}
+td.ci input:focus{background:#fffde8}
+td.ci input::placeholder{color:var(--gm)}
+td.rt{text-align:right;padding:8px 7px;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;background:#fafaf3;color:var(--bk);white-space:nowrap;border-left:1px solid var(--gm)}
+tr.sum-row td{background:var(--bk);color:#fff;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;padding:9px 7px;text-align:right;white-space:nowrap}
+tr.sum-row td:first-child{text-align:left;padding-left:14px;position:sticky;left:0;background:var(--bk);z-index:5}
+tr.ebt-row td{background:var(--gd)}
+tr.ebt-row td.pos{color:var(--yw)}
+tr.ebt-row td.neg{color:var(--re)}
+
+/* BOTTOM BAR */
+.bot-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:10px}
+.kpis{display:flex;gap:12px;flex-wrap:wrap}
+.kpill{background:var(--gl);border-radius:20px;padding:7px 14px;display:flex;gap:7px;align-items:baseline}
+.kpill .kl{font-size:11px;color:var(--tm);font-family:'DM Mono',monospace}
+.kpill .kv{font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:var(--bk)}
+.kpill .kv.pos{color:var(--gn)}
+.kpill .kv.neg{color:var(--re)}
+.send-btn{background:var(--yw);color:var(--bk);border:none;border-radius:var(--rl);padding:12px 32px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 3px 0 var(--yw2);transition:all .15s}
+.send-btn:hover{transform:translateY(-1px);box-shadow:0 4px 0 var(--yw2)}
+.send-btn:active{transform:translateY(1px);box-shadow:0 1px 0 var(--yw2)}
+.send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.hint{font-size:12px;color:var(--tm);margin-top:6px}
+
+#success{display:none;background:#f0faf5;border:1.5px solid var(--gn);border-radius:var(--rl);padding:24px 28px;margin-top:20px;text-align:center}
+#success h3{font-size:18px;color:var(--gn);margin-bottom:6px}
+#success p{color:var(--tm);font-size:13px}
+
+/* ── CLUB LIST (admin) ── */
+.list-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.list-head h1{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.list-head .dt{font-size:12px;color:var(--tm);font-family:'DM Mono',monospace;margin-top:4px}
+.new-btn{background:var(--yw);color:var(--bk);border:none;border-radius:var(--r);padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+.empty-state{text-align:center;padding:80px 20px;color:var(--tm);font-size:14px}
+.empty-state h3{font-size:18px;color:var(--tx);margin-bottom:8px}
+.club-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:32px}
+.club-card{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);padding:18px 20px;cursor:pointer;transition:all .15s;position:relative}
+.club-card:hover{border-color:var(--yw);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.cc-name{font-size:16px;font-weight:600;color:var(--bk);margin-bottom:6px}
+.cc-date{font-size:11px;color:var(--tm);font-family:'DM Mono',monospace;margin-bottom:12px}
+.cc-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.cc-stat{background:var(--gl);border-radius:var(--r);padding:8px 10px}
+.cc-stat .sl{font-size:10px;color:var(--tm);letter-spacing:.06em;text-transform:uppercase;font-family:'DM Mono',monospace}
+.cc-stat .sv{font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:var(--bk)}
+.cc-stat .sv.pos{color:var(--gn)}
+.cc-stat .sv.neg{color:var(--re)}
+.cc-del{position:absolute;top:12px;right:12px;background:transparent;border:none;color:var(--gm);font-size:16px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:4px}
+.cc-del:hover{background:var(--gl);color:var(--re)}
+
+/* ── ANALYSIS VIEW ── */
+.an-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:12px}
+.an-head h1{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.an-head h1 em{color:var(--yw2);font-style:normal}
+.an-head .dt{font-size:12px;color:var(--tm);font-family:'DM Mono',monospace;margin-top:4px}
+.back-btn{background:transparent;border:1px solid var(--bd);border-radius:var(--r);padding:7px 14px;font-size:12px;color:var(--tm);cursor:pointer;white-space:nowrap}
+.back-btn:hover{border-color:var(--gr)}
+.kpi4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.kc{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);padding:16px 18px}
+.kc.hl{background:var(--bk);border-color:var(--bk)}
+.kc .kl{font-size:10px;color:var(--tm);letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:5px}
+.kc.hl .kl{color:var(--gr)}
+.kc .kv{font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--bk)}
+.kc.hl .kv{color:var(--yw)}
+.kc .ks{font-size:11px;color:var(--tm);margin-top:2px}
+.kc.hl .ks{color:var(--gr)}
+.params{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.param{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);padding:16px 18px}
+.param label{display:block;font-size:10px;color:var(--tm);letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:10px}
+.sl-row{display:flex;align-items:center;gap:10px}
+.sl-row input[type=range]{flex:1;accent-color:var(--yw)}
+.sl-v{font-family:'DM Mono',monospace;font-size:16px;font-weight:600;min-width:38px;text-align:right}
+.cx-row{display:flex;align-items:baseline;gap:6px}
+.cx-row .sym{font-family:'DM Mono',monospace;font-size:14px;color:var(--tm)}
+.cx-row input{flex:1;border:none;border-bottom:2px solid var(--bd);font-size:18px;font-weight:600;font-family:'DM Mono',monospace;background:transparent;outline:none;padding:3px 0;transition:border-color .2s}
+.cx-row input:focus{border-color:var(--yw)}
+.ph{font-size:11px;color:var(--tm);margin-top:6px}
+.scs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+.sc{border:1.5px solid var(--bd);border-radius:var(--rl);padding:14px 16px}
+.sc.act{border-color:var(--yw);background:#fffde8}
+.sc .sn{font-size:10px;color:var(--tm);letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:3px}
+.sc .sm{font-size:12px;font-weight:600;color:var(--bk);margin-bottom:5px}
+.sc .sp{font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--bk)}
+.sc.act .sp{color:var(--yw2)}
+.chart-card{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);padding:20px 22px;margin-bottom:16px}
+.chart-card h3{font-size:11px;font-weight:500;color:var(--tm);letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:14px}
+.clegend{display:flex;gap:16px;margin-bottom:12px}
+.clegend span{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tm);font-family:'DM Mono',monospace}
+.ldot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.bd-card{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;margin-bottom:16px}
+.bd-card h3{padding:12px 18px;font-size:11px;font-weight:500;color:var(--tm);letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;background:var(--gl);border-bottom:1px solid var(--bd);margin:0}
+.br{display:flex;justify-content:space-between;padding:9px 18px;border-bottom:1px solid var(--bd);font-size:13px}
+.br:last-child{border-bottom:none}
+.br.tot{background:var(--gl);font-weight:600}
+.br.ebt{background:var(--bk);color:#fff}
+.br.ebt .bv{font-family:'DM Mono',monospace;color:var(--yw)}
+.br.fin{background:var(--yw)}
+.br.fin .bn{font-weight:700}
+.br.fin .bv{font-family:'DM Mono',monospace;font-weight:700;font-size:15px}
+.bn{color:inherit}
+.bn.mt{color:var(--tm);font-size:12px;padding-left:8px}
+.bv{font-family:'DM Mono',monospace;font-size:12px}
+.bv.ng{color:var(--re)}
+.memo-box{background:var(--gl);border-radius:var(--rl);padding:22px 26px;border-left:4px solid var(--yw);margin-bottom:16px}
+.memo-box h3{font-size:11px;font-weight:600;color:var(--tm);letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:10px}
+#memo-text{font-size:13px;line-height:1.8;color:var(--tx)}
+#memo-text strong{color:var(--bk);font-weight:600}
+.act-btns{display:flex;gap:8px}
+.act-btn{background:#fff;border:1px solid var(--bd);border-radius:var(--r);padding:7px 16px;font-size:12px;cursor:pointer;color:var(--tm);transition:all .15s}
+.act-btn:hover{border-color:var(--gr);color:var(--tx)}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:999;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:var(--rl);padding:32px 36px;max-width:360px;width:100%;margin:20px;text-align:center}
+.modal h3{font-size:18px;font-weight:600;margin-bottom:6px}
+.modal p{font-size:13px;color:var(--tm);margin-bottom:20px;line-height:1.6}
+.modal input[type=password]{width:100%;border:1.5px solid var(--bd);border-radius:var(--r);padding:11px 14px;font-size:16px;font-family:'DM Mono',monospace;letter-spacing:.15em;text-align:center;outline:none;margin-bottom:6px;transition:border-color .2s}
+.modal input[type=password]:focus{border-color:var(--yw)}
+.merr{font-size:12px;color:var(--re);height:16px;margin-bottom:10px}
+.modal-ok{width:100%;background:var(--yw);border:none;border-radius:var(--r);padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 2px 0 var(--yw2)}
+.modal-ok:hover{transform:translateY(-1px)}
+.modal-cancel{background:transparent;border:none;color:var(--tm);font-size:12px;cursor:pointer;margin-top:10px;display:block;width:100%}
+
+/* CONFIRM MODAL */
+.confirm-modal{background:#fff;border-radius:var(--rl);padding:28px 32px;max-width:320px;width:100%;margin:20px;text-align:center}
+.confirm-modal h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.confirm-modal p{font-size:13px;color:var(--tm);margin-bottom:20px}
+.confirm-btns{display:flex;gap:8px}
+.confirm-btns button{flex:1;padding:10px;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;border:none}
+.btn-cancel-confirm{background:var(--gl);color:var(--tx)}
+.btn-delete{background:var(--re);color:#fff}
+
+@media(max-width:640px){
+  .kpi4{grid-template-columns:1fr 1fr}
+  .params{grid-template-columns:1fr}
+  .scs{grid-template-columns:1fr}
+  .kpis{flex-wrap:wrap;gap:8px}
+}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-logo">
+    <span class="hd-bk">Brooklyn</span><span class="hd-ft">Fitboxing</span>
+    <span class="hd-sep">·</span><span class="hd-tr">Transfer</span>
+  </div>
+  <div class="hd-right">
+    <span class="badge" id="badge">Modo Admin</span>
+    <button id="admin-btn" onclick="openModal()">Acceso admin</button>
+  </div>
+</header>
+
+<!-- PASSWORD MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3>Acceso admin</h3>
+    <p>Introduce la contraseña para gestionar todos los clubs.</p>
+    <input type="password" id="pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkPwd()">
+    <div class="merr" id="merr"></div>
+    <button class="modal-ok" onclick="checkPwd()">Entrar</button>
+    <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE MODAL -->
+<div class="modal-bg" id="confirm-modal">
+  <div class="confirm-modal">
+    <h3>Eliminar club</h3>
+    <p id="confirm-text">¿Seguro que quieres eliminar los datos de este club?</p>
+    <div class="confirm-btns">
+      <button class="btn-cancel-confirm" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn-delete" onclick="confirmDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<main class="main">
+
+  <!-- LOADING -->
+  <div id="vloading">
+    <div class="spinner"></div>
+    <div class="loading-text">Cargando...</div>
+  </div>
+
+  <!-- FORM VIEW (franquiciado) -->
+  <div id="vf">
+    <div class="fi-head">
+      <h1>Datos de rentabilidad del club</h1>
+      <p>Rellena los ingresos y gastos reales de tu club mes a mes (sin IVA). Deja en blanco los meses que no tengas.</p>
+    </div>
+    <div class="club-row">
+      <label>Nombre del club</label>
+      <input type="text" id="club-name" placeholder="BF Nombre del club" oninput="onNameChange()">
+    </div>
+    <div class="tbl-wrap">
+      <table id="main-table">
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="bot-bar">
+      <div class="kpis">
+        <div class="kpill"><span class="kl">Ingresos</span><span class="kv" id="f-ing">€0</span></div>
+        <div class="kpill"><span class="kl">Gastos</span><span class="kv" id="f-gas">€0</span></div>
+        <div class="kpill"><span class="kl">EBITDA</span><span class="kv" id="f-ebt">€0</span></div>
+      </div>
+      <button class="send-btn" id="send-btn" onclick="sendData()">Enviar datos →</button>
+    </div>
+    <p class="hint">Los datos se guardan de forma segura. Nico los recibirá en cuanto pulses "Enviar".</p>
+    <div id="success">
+      <h3>✓ Datos enviados correctamente</h3>
+      <p>El equipo de Brooklyn Fitboxing ya tiene acceso a tu información y se pondrá en contacto contigo pronto.</p>
+    </div>
+  </div>
+
+  <!-- CLUB LIST (admin) -->
+  <div id="vlist">
+    <div class="list-head">
+      <div>
+        <h1>Clubs en proceso de transfer</h1>
+        <div class="dt" id="list-date"></div>
+      </div>
+    </div>
+    <div id="club-cards-wrap"></div>
+  </div>
+
+  <!-- ANALYSIS VIEW (admin) -->
+  <div id="va">
+    <div class="an-head">
+      <div>
+        <h1>Análisis · <em id="a-club"></em></h1>
+        <div class="dt" id="a-date"></div>
+      </div>
+      <button class="back-btn" onclick="showList()">← Todos los clubs</button>
+    </div>
+    <div class="kpi4">
+      <div class="kc"><div class="kl">Ingresos totales</div><div class="kv" id="a-ing">—</div><div class="ks" id="a-meses">—</div></div>
+      <div class="kc"><div class="kl">Gastos operativos</div><div class="kv" id="a-gas">—</div><div class="ks">Sin IVA</div></div>
+      <div class="kc"><div class="kl">EBITDA</div><div class="kv" id="a-ebt">—</div><div class="ks" id="a-mrg">—</div></div>
+      <div class="kc hl"><div class="kl">Precio final</div><div class="kv" id="a-prc">—</div><div class="ks" id="a-prc-sub">—</div></div>
+    </div>
+    <div class="params">
+      <div class="param">
+        <label>Múltiplo EBITDA</label>
+        <div class="sl-row">
+          <input type="range" min="1.5" max="6" step="0.1" value="3.5" id="mult" oninput="updateA()">
+          <div class="sl-v" id="mult-v">3.5×</div>
+        </div>
+        <div class="ph">Rango habitual BFI: 3× – 5×</div>
+      </div>
+      <div class="param">
+        <label>CAPEX a descontar</label>
+        <div class="cx-row">
+          <span class="sym">€</span>
+          <input type="number" id="capex" value="0" step="500" oninput="updateA()">
+        </div>
+        <div class="ph">Inversión pendiente del club</div>
+      </div>
+    </div>
+    <div class="scs" id="a-scs"></div>
+    <div class="chart-card">
+      <h3>Curva de valoración por múltiplo</h3>
+      <div class="clegend">
+        <span><span class="ldot" style="background:var(--yw)"></span>Precio base</span>
+        <span><span class="ldot" style="background:var(--gn)"></span>Precio final (− CAPEX)</span>
+      </div>
+      <div style="position:relative;height:200px"><canvas id="cv" role="img" aria-label="Curva de valoración"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Evolución mensual</h3>
+      <div style="position:relative;height:190px"><canvas id="cm" role="img" aria-label="Evolución mensual"></canvas></div>
+    </div>
+    <div class="bd-card">
+      <h3>Desglose PyG completo</h3>
+      <div id="a-bd"></div>
+    </div>
+    <div class="memo-box">
+      <h3>Resumen ejecutivo</h3>
+      <div id="memo-text"></div>
+    </div>
+    <div class="act-btns">
+      <button class="act-btn" onclick="copyMemo()">Copiar resumen</button>
+      <button class="act-btn" onclick="exportJSON()">Exportar JSON</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────
+const ADMIN_PWD = 'bfitransfer24';
+const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const GASTOS = [
+  {k:'salarios',   l:'Salarios'},
+  {k:'seg_soc',    l:'Seguros sociales'},
+  {k:'alquiler',   l:'Alquiler'},
+  {k:'royalties',  l:'Brooklyn Royalties'},
+  {k:'app',        l:'Brooklyn App'},
+  {k:'marketing',  l:'Brooklyn Marketing'},
+  {k:'play',       l:'BF Play / Web / Música'},
+  {k:'h4c',        l:'Brooklyn H4C'},
+  {k:'powerup',    l:'Brooklyn Power Up'},
+  {k:'guantes',    l:'Guantes y Vendas'},
+  {k:'gestoria',   l:'Gestoría / Serv. prof.'},
+  {k:'mkt_otros',  l:'Otros marketing'},
+  {k:'limpieza',   l:'Limpieza'},
+  {k:'suministros',l:'Suministros'},
+  {k:'telefono',   l:'Teléfono'},
+  {k:'seguros',    l:'Seguros'},
+  {k:'comisiones', l:'Comisiones financieras'},
+  {k:'otros',      l:'Otros gastos'},
+];
+
+function buildMonths(){
+  const now=new Date(), months=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push(MONTH_NAMES[d.getMonth()]+' '+String(d.getFullYear()).slice(2));
+  }
+  return months;
+}
+const MONTHS = buildMonths();
+
+// ─── STATE ────────────────────────────────────────────────────────
+let isAdmin = false;
+let currentClubKey = null;
+let currentAnalysisData = null;
+let deleteKeyPending = null;
+let cvChart=null, cmChart=null;
+let D = {clubName:'', months:{}};
+
+function freshData(){
+  const d={clubName:'',months:{}};
+  MONTHS.forEach((_,i)=>{d.months[i]={ing:'',g:{}};GASTOS.forEach(g=>{d.months[i].g[g.k]='';});});
+  return d;
+}
+
+// ─── STORAGE API ──────────────────────────────────────────────────
+async function saveClub(key, data){
+  try{ await window.storage.set(key, JSON.stringify(data), true); return true; }
+  catch(e){ console.error('Save error',e); return false; }
+}
+async function loadClub(key){
+  try{ const r=await window.storage.get(key, true); return r?JSON.parse(r.value):null; }
+  catch(e){ return null; }
+}
+async function deleteClub(key){
+  try{ await window.storage.delete(key, true); return true; }
+  catch(e){ return false; }
+}
+async function listClubs(){
+  try{ const r=await window.storage.list('club:', true); return r?r.keys:[]; }
+  catch(e){ return []; }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────
+const N=v=>{const x=parseFloat(v);return isNaN(x)?0:x;};
+function fmt(v,short=false){
+  if(short){
+    if(Math.abs(v)>=1000000) return (v<0?'−':'')+'€'+(Math.abs(v)/1000000).toFixed(2)+'M';
+    if(Math.abs(v)>=1000) return (v<0?'−':'')+'€'+Math.abs(Math.round(v/1000))+'K';
+  }
+  return (v<0?'−€':'€')+Math.abs(Math.round(v)).toLocaleString('es-ES');
+}
+function mTot(data,i){
+  const d=data.months[i]||{ing:'',g:{}};
+  const ing=N(d.ing);
+  const gas=GASTOS.reduce((s,g)=>s+N(d.g[g.k]),0);
+  return{ing,gas,ebt:ing-gas};
+}
+function allTot(data){
+  let ing=0,gas=0; const gl={};GASTOS.forEach(g=>gl[g.k]=0);
+  MONTHS.forEach((_,i)=>{const t=mTot(data,i);ing+=t.ing;gas+=t.gas;GASTOS.forEach(g=>gl[g.k]+=N(data.months[i].g[g.k]));});
+  return{ing,gas,ebt:ing-gas,gl};
+}
+function filledM(data){return MONTHS.filter((_,i)=>N(data.months[i].ing)>0).length;}
+function clubKey(name){return 'club:'+name.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');}
+function show(id){['vloading','vf','vlist','va'].forEach(v=>document.getElementById(v).style.display=v===id?'block':'none');}
+
+// ─── TABLE BUILD ──────────────────────────────────────────────────
+function buildTable(){
+  let th=`<tr><th>Concepto</th>`;
+  MONTHS.forEach(m=>th+=`<th>${m}</th>`);
+  th+=`<th class="th-total">TOTAL</th></tr>`;
+  document.getElementById('thead').innerHTML=th;
+
+  let tb='';
+  tb+=`<tr class="section-row"><td colspan="${MONTHS.length+2}">Ingresos</td></tr>`;
+  tb+=`<tr class="data-row"><td class="row-label">Ingresos (sin IVA)</td>`;
+  MONTHS.forEach((_,i)=>tb+=`<td class="ci"><input type="number" id="i-${i}" value="${D.months[i]?.ing||''}" placeholder="—" min="0" step="100" oninput="onInput()"></td>`);
+  tb+=`<td class="rt" id="rt-ing"></td></tr>`;
+
+  tb+=`<tr class="section-row"><td colspan="${MONTHS.length+2}">Gastos operativos (sin IVA)</td></tr>`;
+  GASTOS.forEach(g=>{
+    tb+=`<tr class="data-row"><td class="row-label">${g.l}</td>`;
+    MONTHS.forEach((_,i)=>tb+=`<td class="ci"><input type="number" id="g-${i}-${g.k}" value="${D.months[i]?.g[g.k]||''}" placeholder="—" min="0" step="10" oninput="onInput()"></td>`);
+    tb+=`<td class="rt" id="rt-${g.k}"></td></tr>`;
+  });
+
+  tb+=`<tr class="sum-row"><td>Total gastos</td>`;
+  MONTHS.forEach((_,i)=>tb+=`<td id="sg-${i}"></td>`);
+  tb+=`<td id="sg-tot"></td></tr>`;
+  tb+=`<tr class="sum-row ebt-row"><td>EBITDA</td>`;
+  MONTHS.forEach((_,i)=>tb+=`<td id="se-${i}"></td>`);
+  tb+=`<td id="se-tot"></td></tr>`;
+
+  document.getElementById('tbody').innerHTML=tb;
+  updateFooter();
+}
+
+function onInput(){
+  readFormIntoD();
+  updateFooter();
+}
+function onNameChange(){
+  D.clubName=document.getElementById('club-name').value;
+}
+
+function readFormIntoD(){
+  D.clubName=document.getElementById('club-name').value;
+  MONTHS.forEach((_,i)=>{
+    D.months[i].ing=document.getElementById('i-'+i)?.value||'';
+    GASTOS.forEach(g=>{D.months[i].g[g.k]=document.getElementById(`g-${i}-${g.k}`)?.value||'';});
+  });
+}
+
+function setEl(id,val){const e=document.getElementById(id);if(e)e.textContent=val||'';}
+
+function updateFooter(){
+  let ingTot=0;
+  MONTHS.forEach((_,i)=>ingTot+=N(D.months[i].ing));
+  setEl('rt-ing',ingTot>0?fmt(ingTot):'');
+  GASTOS.forEach(g=>{
+    const tot=MONTHS.reduce((s,_,i)=>s+N(D.months[i].g[g.k]),0);
+    setEl('rt-'+g.k,tot>0?fmt(tot):'');
+  });
+  MONTHS.forEach((_,i)=>{
+    const t=mTot(D,i);
+    setEl('sg-'+i,t.gas>0?fmt(t.gas):'');
+    const eEl=document.getElementById('se-'+i);
+    if(eEl){eEl.textContent=t.ebt!==0?fmt(t.ebt):'';eEl.className=t.ebt>=0?'pos':'neg';}
+  });
+  const tot=allTot(D);
+  setEl('sg-tot',fmt(tot.gas));
+  const etEl=document.getElementById('se-tot');
+  if(etEl){etEl.textContent=fmt(tot.ebt);etEl.className=tot.ebt>=0?'pos':'neg';}
+  setEl('f-ing',fmt(tot.ing,true));
+  setEl('f-gas',fmt(tot.gas,true));
+  const fe=document.getElementById('f-ebt');
+  if(fe){fe.textContent=fmt(tot.ebt,true);fe.className='kv '+(tot.ebt>=0?'pos':'neg');}
+}
+
+// ─── SEND ─────────────────────────────────────────────────────────
+async function sendData(){
+  readFormIntoD();
+  const name=D.clubName.trim();
+  if(!name){alert('Por favor, introduce el nombre del club antes de enviar.');document.getElementById('club-name').focus();return;}
+  if(filledM(D)===0){alert('Por favor, introduce al menos un mes de ingresos antes de enviar.');return;}
+  const btn=document.getElementById('send-btn');
+  btn.disabled=true;btn.textContent='Guardando...';
+  const key=clubKey(name);
+  const payload={...D, savedAt: new Date().toISOString(), key};
+  const ok=await saveClub(key, payload);
+  if(ok){
+    document.getElementById('success').style.display='block';
+    btn.textContent='✓ Enviado';
+    window.scrollTo({top:document.getElementById('success').offsetTop-80,behavior:'smooth'});
+  } else {
+    btn.disabled=false;btn.textContent='Enviar datos →';
+    alert('Error al guardar. Por favor, inténtalo de nuevo.');
+  }
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────
+function openModal(){document.getElementById('modal').classList.add('open');document.getElementById('merr').textContent='';document.getElementById('pwd').value='';setTimeout(()=>document.getElementById('pwd').focus(),100);}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+function checkPwd(){
+  if(document.getElementById('pwd').value===ADMIN_PWD){closeModal();enterAdmin();}
+  else{document.getElementById('merr').textContent='Contraseña incorrecta';document.getElementById('pwd').value='';document.getElementById('pwd').focus();}
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────
+async function enterAdmin(){
+  isAdmin=true;
+  document.getElementById('badge').style.display='block';
+  document.getElementById('admin-btn').style.display='none';
+  show('vloading');
+  await showList();
+}
+
+async function showList(){
+  show('vloading');
+  if(cvChart){cvChart.destroy();cvChart=null;}
+  if(cmChart){cmChart.destroy();cmChart=null;}
+  document.getElementById('list-date').textContent=new Date().toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
+  const keys=await listClubs();
+  const wrap=document.getElementById('club-cards-wrap');
+
+  if(keys.length===0){
+    wrap.innerHTML=`<div class="empty-state"><h3>No hay clubs todavía</h3><p>Cuando un franquiciado envíe sus datos aparecerán aquí.</p></div>`;
+    show('vlist');
+    return;
+  }
+
+  const clubs=[];
+  for(const k of keys){
+    const d=await loadClub(k);
+    if(d) clubs.push(d);
+  }
+  clubs.sort((a,b)=>new Date(b.savedAt||0)-new Date(a.savedAt||0));
+
+  wrap.innerHTML=`<div class="club-cards">${clubs.map(c=>{
+    const tot=allTot(c);
+    const fm=filledM(c);
+    const date=c.savedAt?new Date(c.savedAt).toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'}):'—';
+    const mrg=tot.ing>0?(tot.ebt/tot.ing*100):0;
+    return`<div class="club-card" onclick="openClub('${c.key}')">
+      <button class="cc-del" onclick="event.stopPropagation();askDelete('${c.key}','${c.clubName}')">×</button>
+      <div class="cc-name">${c.clubName||'Sin nombre'}</div>
+      <div class="cc-date">Enviado: ${date} · ${fm} meses</div>
+      <div class="cc-stats">
+        <div class="cc-stat"><div class="sl">Ingresos</div><div class="sv">${fmt(tot.ing,true)}</div></div>
+        <div class="cc-stat"><div class="sl">EBITDA</div><div class="sv ${tot.ebt>=0?'pos':'neg'}">${fmt(tot.ebt,true)}</div></div>
+        <div class="cc-stat"><div class="sl">Gastos</div><div class="sv">${fmt(tot.gas,true)}</div></div>
+        <div class="cc-stat"><div class="sl">Margen</div><div class="sv ${mrg>=0?'pos':'neg'}">${mrg.toFixed(1)}%</div></div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+  show('vlist');
+}
+
+async function openClub(key){
+  show('vloading');
+  const data=await loadClub(key);
+  if(!data){alert('No se pudo cargar el club.');showList();return;}
+  currentAnalysisData=data;
+  document.getElementById('a-club').textContent=data.clubName||'Sin nombre';
+  document.getElementById('a-date').textContent=data.savedAt?new Date(data.savedAt).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—';
+  document.getElementById('mult').value=3.5;
+  document.getElementById('capex').value=0;
+  updateA();
+  show('va');
+  window.scrollTo(0,0);
+}
+
+// ─── CONFIRM DELETE ───────────────────────────────────────────────
+function askDelete(key, name){
+  deleteKeyPending=key;
+  document.getElementById('confirm-text').textContent=`¿Seguro que quieres eliminar los datos de "${name}"? Esta acción no se puede deshacer.`;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirm-modal').classList.remove('open');deleteKeyPending=null;}
+async function confirmDelete(){
+  if(!deleteKeyPending){closeConfirm();return;}
+  await deleteClub(deleteKeyPending);
+  closeConfirm();
+  showList();
+}
+
+// ─── ANALYSIS ─────────────────────────────────────────────────────
+function updateA(){
+  const data=currentAnalysisData;
+  if(!data) return;
+  const tot=allTot(data);
+  const mult=parseFloat(document.getElementById('mult').value);
+  const capex=N(document.getElementById('capex').value);
+  const base=tot.ebt*mult, final=base-capex;
+  const mrg=tot.ing>0?(tot.ebt/tot.ing*100):0;
+  const fm=filledM(data);
+
+  document.getElementById('mult-v').textContent=mult.toFixed(1)+'×';
+  setEl('a-ing',fmt(tot.ing,true));
+  setEl('a-gas',fmt(tot.gas,true));
+  setEl('a-ebt',fmt(tot.ebt,true));
+  setEl('a-mrg','Margen '+mrg.toFixed(1)+'%');
+  setEl('a-prc',fmt(final,true));
+  setEl('a-prc-sub',mult.toFixed(1)+'× − CAPEX '+fmt(capex,true));
+  setEl('a-meses',fm+' mes'+(fm!==1?'es':''));
+
+  const scs=[{n:'Conservador',m:3},{n:'Referencia',m:mult},{n:'Optimista',m:5}];
+  document.getElementById('a-scs').innerHTML=scs.map(s=>{
+    const p=tot.ebt*s.m-capex;
+    return`<div class="sc ${s.n==='Referencia'?'act':''}"><div class="sn">${s.n}</div><div class="sm">${s.m.toFixed(1)}×</div><div class="sp">${fmt(p,true)}</div></div>`;
+  }).join('');
+
+  let bd=`<div class="br"><span class="bn">Ingresos totales (sin IVA)</span><span class="bv">${fmt(tot.ing)}</span></div>`;
+  GASTOS.forEach(g=>{const v=tot.gl[g.k];if(v>0)bd+=`<div class="br"><span class="bn mt">${g.l}</span><span class="bv ng">(${fmt(v)})</span></div>`;});
+  bd+=`<div class="br tot"><span class="bn">Total gastos operativos</span><span class="bv ng">(${fmt(tot.gas)})</span></div>`;
+  bd+=`<div class="br ebt"><span class="bn">EBITDA</span><span class="bv">${fmt(tot.ebt)}</span></div>`;
+  bd+=`<div class="br"><span class="bn">× Múltiplo ${mult.toFixed(1)}</span><span class="bv">${fmt(base)}</span></div>`;
+  bd+=`<div class="br"><span class="bn">− CAPEX</span><span class="bv ng">(${fmt(capex)})</span></div>`;
+  bd+=`<div class="br fin"><span class="bn">Precio final de venta</span><span class="bv">${fmt(final)}</span></div>`;
+  document.getElementById('a-bd').innerHTML=bd;
+
+  renderCvChart(tot.ebt,capex);
+  renderCmChart(data);
+
+  const today=new Date().toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('memo-text').innerHTML=`
+    <p><strong>${data.clubName||'Club'} · Análisis ${today}</strong></p><br>
+    <p>Período: <strong>${fm} meses</strong> (${MONTHS[0]} – ${MONTHS[11]}). Ingresos: <strong>${fmt(tot.ing)}</strong>. Gastos: <strong>${fmt(tot.gas)}</strong>. <strong>EBITDA: ${fmt(tot.ebt)}</strong> (margen ${mrg.toFixed(1)}%).</p><br>
+    <p>Con múltiplo <strong>${mult.toFixed(1)}×</strong>: precio base <strong>${fmt(base)}</strong>. Descontando CAPEX de <strong>${fmt(capex)}</strong>, precio final recomendado: <strong>${fmt(final)}</strong>.</p><br>
+    <p>Rango 3×–5×: <strong>${fmt(tot.ebt*3-capex,true)} – ${fmt(tot.ebt*5-capex,true)}</strong>.</p>`;
+}
+
+function renderCvChart(ebt,capex){
+  const ms=[1.5,2,2.5,3,3.5,4,4.5,5,5.5,6];
+  if(cvChart)cvChart.destroy();
+  cvChart=new Chart(document.getElementById('cv'),{
+    type:'line',
+    data:{labels:ms.map(m=>m.toFixed(1)+'×'),datasets:[
+      {label:'Base',data:ms.map(m=>Math.round(ebt*m)),borderColor:'#FFCC00',backgroundColor:'rgba(255,204,0,.07)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#FFCC00'},
+      {label:'Final',data:ms.map(m=>Math.round(ebt*m-capex)),borderColor:'#1a9e6e',backgroundColor:'rgba(26,158,110,.05)',fill:true,tension:.3,pointRadius:4,borderDash:[5,3],pointBackgroundColor:'#1a9e6e'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw,true)}}},
+      scales:{y:{ticks:{callback:v=>fmt(v,true),font:{size:10,family:'DM Mono, monospace'}},grid:{color:'rgba(0,0,0,.04)'}},x:{ticks:{font:{size:10,family:'DM Mono, monospace'}},grid:{display:false}}}}
+  });
+}
+
+function renderCmChart(data){
+  if(cmChart)cmChart.destroy();
+  cmChart=new Chart(document.getElementById('cm'),{
+    type:'bar',
+    data:{labels:MONTHS,datasets:[
+      {label:'Ingresos',data:MONTHS.map((_,i)=>Math.round(N(data.months[i].ing))),backgroundColor:'rgba(255,204,0,.65)',borderRadius:3},
+      {label:'Gastos',data:MONTHS.map((_,i)=>Math.round(mTot(data,i).gas)),backgroundColor:'rgba(154,153,158,.3)',borderRadius:3},
+      {label:'EBITDA',data:MONTHS.map((_,i)=>Math.round(mTot(data,i).ebt)),type:'line',borderColor:'#1a9e6e',backgroundColor:'transparent',tension:.3,pointRadius:4,pointBackgroundColor:'#1a9e6e',borderWidth:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw,true)}}},
+      scales:{y:{ticks:{callback:v=>fmt(v,true),font:{size:10,family:'DM Mono, monospace'}},grid:{color:'rgba(0,0,0,.04)'}},x:{ticks:{font:{size:10,family:'DM Mono, monospace'}},grid:{display:false}}}}
+  });
+}
+
+function copyMemo(){
+  navigator.clipboard.writeText(document.getElementById('memo-text').innerText).then(()=>{
+    const b=event.target;b.textContent='✓ Copiado';setTimeout(()=>b.textContent='Copiar resumen',2000);
+  }).catch(()=>{});
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(currentAnalysisData,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(currentAnalysisData?.clubName||'club').replace(/\s+/g,'_')+'_transfer.json';a.click();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+async function init(){
+  show('vloading');
+  D = freshData();
+  buildTable();
+  // Small delay to let storage API initialize
+  await new Promise(r=>setTimeout(r,400));
+  show('vf');
+}
+
+init();
+</script>
+</body>
+</html>
