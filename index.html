@@ -67,6 +67,11 @@ td.ci input{width:100%;border:none;background:transparent;font-size:13px;font-fa
 td.ci input:focus{background:#fffde8}
 td.ci input::placeholder{color:var(--gm)}
 td.rt{text-align:right;padding:8px 7px;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;background:#fafaf3;color:var(--bk);white-space:nowrap;border-left:1px solid var(--gm)}
+td.base-cell{padding:0;background:#fffde8;border-right:1px solid var(--gm)}
+td.base-cell input{width:100%;border:none;background:transparent;font-size:12px;font-family:'DM Mono',monospace;color:var(--yw2);text-align:right;padding:8px 6px;outline:none}
+td.base-cell input:focus{background:#fff8cc}
+td.base-cell input::placeholder{color:#d4c060;font-size:11px}
+thead th.th-base{background:#d4a800;color:#0a0a0a;font-size:10px;min-width:72px}
 tr.sum-row td{background:var(--bk);color:#fff;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;padding:9px 7px;text-align:right;white-space:nowrap}
 tr.sum-row td:first-child{text-align:left;padding-left:14px;position:sticky;left:0;background:var(--bk);z-index:5}
 tr.ebt-row td{background:var(--gd)}
@@ -272,7 +277,7 @@ tr.ebt-row td.neg{color:var(--re)}
       </div>
       <button class="send-btn" id="send-btn" onclick="sendData()">Enviar datos →</button>
     </div>
-    <p class="hint">Los datos se guardan de forma segura. BFI los recibirá en cuanto pulses "Enviar".</p>
+    <p class="hint">Los datos se guardan de forma segura. Nico los recibirá en cuanto pulses "Enviar".</p>
     <div id="success">
       <h3>✓ Datos enviados correctamente</h3>
       <p>El equipo de Brooklyn Fitboxing ya tiene acceso a tu información y se pondrá en contacto contigo pronto.</p>
@@ -456,21 +461,34 @@ function clubKey(name){return 'club:'+name.trim().toLowerCase().replace(/\s+/g,'
 function show(id){['vloading','vf','vlist','va'].forEach(v=>document.getElementById(v).style.display=v===id?'block':'none');}
 
 // ─── TABLE BUILD ──────────────────────────────────────────────────
+function applyBase(key){
+  // called on 'change' (blur) so full value is available
+  const baseEl = document.getElementById('base-' + key);
+  if(!baseEl) return;
+  const val = baseEl.value;
+  if(!val) return;
+  MONTHS.forEach((_,i)=>{
+    const el = key==='ing' ? document.getElementById('i-'+i) : document.getElementById('g-'+i+'-'+key);
+    if(el) el.value = val;
+  });
+  onInput();
+}
+
 function buildTable(){
-  let th=`<tr><th>Concepto</th>`;
+  let th=`<tr><th>Concepto</th><th class="th-base">BASE</th>`;
   MONTHS.forEach(m=>th+=`<th>${m}</th>`);
   th+=`<th class="th-total">TOTAL</th></tr>`;
   document.getElementById('thead').innerHTML=th;
 
   let tb='';
-  tb+=`<tr class="section-row"><td colspan="${MONTHS.length+2}">Ingresos</td></tr>`;
-  tb+=`<tr class="data-row"><td class="row-label">Ingresos (sin IVA)</td>`;
+  tb+=`<tr class="section-row"><td colspan="${MONTHS.length+3}">Ingresos</td></tr>`;
+  tb+=`<tr class="data-row"><td class="row-label">Ingresos (sin IVA)</td><td class="base-cell"><input type="number" id="base-ing" placeholder="base" min="0" step="100" onchange="applyBase('ing')"></td>`;
   MONTHS.forEach((_,i)=>tb+=`<td class="ci"><input type="number" id="i-${i}" value="${D.months[i]?.ing||''}" placeholder="—" min="0" step="100" oninput="onInput()"></td>`);
   tb+=`<td class="rt" id="rt-ing"></td></tr>`;
 
-  tb+=`<tr class="section-row"><td colspan="${MONTHS.length+2}">Gastos operativos (sin IVA)</td></tr>`;
+  tb+=`<tr class="section-row"><td colspan="${MONTHS.length+3}">Gastos operativos (sin IVA)</td></tr>`;
   GASTOS.forEach(g=>{
-    tb+=`<tr class="data-row"><td class="row-label">${g.l}</td>`;
+    tb+=`<tr class="data-row"><td class="row-label">${g.l}</td><td class="base-cell"><input type="number" id="base-${g.k}" placeholder="base" min="0" step="10" onchange="applyBase('${g.k}')"></td>`;
     MONTHS.forEach((_,i)=>tb+=`<td class="ci"><input type="number" id="g-${i}-${g.k}" value="${D.months[i]?.g[g.k]||''}" placeholder="—" min="0" step="10" oninput="onInput()"></td>`);
     tb+=`<td class="rt" id="rt-${g.k}"></td></tr>`;
   });
