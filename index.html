@@ -123,6 +123,9 @@ tr.ebt-row td.neg{color:var(--re)}
 .an-head h1 em{color:var(--yw2);font-style:normal}
 .an-head .dt{font-size:12px;color:var(--tm);font-family:'DM Mono',monospace;margin-top:4px}
 .back-btn{background:transparent;border:1px solid var(--bd);border-radius:var(--r);padding:7px 14px;font-size:12px;color:var(--tm);cursor:pointer;white-space:nowrap}
+.atab{padding:7px 18px;font-size:13px;border-radius:20px;border:1.5px solid var(--bd);cursor:pointer;background:transparent;color:var(--tm);font-family:'DM Sans',sans-serif;transition:all .15s}
+.atab:hover{border-color:var(--gr)}
+.atab.active{background:var(--bk);border-color:var(--bk);color:#fff;font-weight:500}
 .back-btn:hover{border-color:var(--gr)}
 .kpi4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
 .kc{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);padding:16px 18px}
@@ -304,6 +307,11 @@ tr.ebt-row td.neg{color:var(--re)}
       </div>
       <button class="back-btn" onclick="showList()">← Todos los clubs</button>
     </div>
+    <div style="display:flex;gap:6px;margin-bottom:24px;">
+      <button class="atab active" id="atab-pyg" onclick="switchAtab('pyg')">PyG actual</button>
+      <button class="atab" id="atab-plan" onclick="switchAtab('plan')">Plan comprador</button>
+    </div>
+    <div id="apanel-pyg">
     <div class="kpi4">
       <div class="kc"><div class="kl">Ingresos totales</div><div class="kv" id="a-ing">—</div><div class="ks" id="a-meses">—</div></div>
       <div class="kc"><div class="kl">Gastos operativos</div><div class="kv" id="a-gas">—</div><div class="ks">Sin IVA</div></div>
@@ -352,6 +360,38 @@ tr.ebt-row td.neg{color:var(--re)}
     <div class="act-btns">
       <button class="act-btn" onclick="copyMemo()">Copiar resumen</button>
       <button class="act-btn" onclick="exportJSON()">Exportar JSON</button>
+    </div>
+    </div><!-- end apanel-pyg -->
+
+    <div id="apanel-plan" style="display:none;">
+      <div style="background:var(--gl);border-radius:var(--rl);padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--tm);border-left:4px solid var(--yw);">
+        Los gastos parten de los datos reales del club. Edita los que cambiarán con el nuevo contrato del comprador.
+      </div>
+      <div class="tbl-wrap" style="margin-bottom:20px;">
+        <table style="border-collapse:collapse;width:100%;min-width:400px;">
+          <thead>
+            <tr>
+              <th style="background:var(--bk);color:#fff;font-size:11px;font-family:'DM Mono',monospace;padding:9px 16px;text-align:left;min-width:220px;">Concepto</th>
+              <th style="background:var(--bk);color:#fff;font-size:11px;font-family:'DM Mono',monospace;padding:9px 10px;text-align:right;min-width:130px;">Actual (anual)</th>
+              <th style="background:#d4a800;color:#0a0a0a;font-size:11px;font-family:'DM Mono',monospace;padding:9px 10px;text-align:right;min-width:150px;">Comprador (anual)</th>
+              <th style="background:var(--bk);color:#fff;font-size:11px;font-family:'DM Mono',monospace;padding:9px 10px;text-align:right;min-width:110px;">Diferencia</th>
+            </tr>
+          </thead>
+          <tbody id="plan-tbody"></tbody>
+        </table>
+      </div>
+      <div class="kpi4" id="plan-kpis" style="margin-bottom:20px;"></div>
+      <div class="chart-card">
+        <h3>Comparativa EBITDA actual vs. proyectado</h3>
+        <div style="position:relative;height:180px;"><canvas id="cp" role="img" aria-label="Comparativa EBITDA"></canvas></div>
+      </div>
+      <div class="memo-box" style="margin-top:16px;">
+        <h3>Resumen plan comprador</h3>
+        <div id="plan-memo"></div>
+      </div>
+      <div class="act-btns" style="margin-top:12px;">
+        <button class="act-btn" onclick="copyPlanMemo()">Copiar resumen plan</button>
+      </div>
     </div>
   </div>
 
@@ -633,6 +673,8 @@ async function openClub(key){
   document.getElementById('a-date').textContent=data.savedAt?new Date(data.savedAt).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—';
   document.getElementById('mult').value=3.5;
   document.getElementById('capex').value=0;
+  planData={};
+  switchAtab('pyg');
   updateA();
   show('va');
   window.scrollTo(0,0);
@@ -735,6 +777,133 @@ function exportJSON(){
   const blob=new Blob([JSON.stringify(currentAnalysisData,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=(currentAnalysisData?.clubName||'club').replace(/\s+/g,'_')+'_transfer.json';a.click();
+}
+
+// ─── PLAN COMPRADOR ───────────────────────────────────────────────
+let planData = {}; // {gk: annualValue} edited by Nico
+let cpChart = null;
+
+function switchAtab(tab) {
+  document.getElementById('atab-pyg').classList.toggle('active', tab==='pyg');
+  document.getElementById('atab-plan').classList.toggle('active', tab==='plan');
+  document.getElementById('apanel-pyg').style.display = tab==='pyg' ? 'block' : 'none';
+  document.getElementById('apanel-plan').style.display = tab==='plan' ? 'block' : 'none';
+  if(tab==='plan') renderPlan();
+}
+
+function renderPlan() {
+  const data = currentAnalysisData;
+  if(!data) return;
+  const tot = allTot(data);
+
+  // Init planData from actual totals if not set
+  GASTOS.forEach(g => {
+    if(planData[g.k] === undefined) planData[g.k] = Math.round(tot.gl[g.k]);
+  });
+  if(planData['ing'] === undefined) planData['ing'] = Math.round(tot.ing);
+
+  // Build table
+  let tb = '';
+  // Ingresos row
+  const ingActual = Math.round(tot.ing);
+  const ingPlan = planData['ing'] !== undefined ? planData['ing'] : ingActual;
+  const ingDiff = ingPlan - ingActual;
+  const diffColorIng = ingDiff > 0 ? '#1a9e6e' : ingDiff < 0 ? '#d93636' : '#6b6b68';
+  tb += `<tr style="border-bottom:1px solid var(--bd);background:#fffde8;">
+    <td style="padding:9px 16px;font-size:13px;font-weight:600;color:var(--tx);">Ingresos (sin IVA)</td>
+    <td style="padding:9px 10px;text-align:right;font-family:'DM Mono',monospace;font-size:13px;">${fmt(ingActual)}</td>
+    <td style="padding:4px 6px;text-align:right;"><input type="number" value="${ingPlan}" style="width:120px;border:1px solid #d4a800;border-radius:6px;padding:6px 8px;font-family:'DM Mono',monospace;font-size:13px;text-align:right;background:#fffde8;outline:none;" oninput="planData['ing']=+this.value;updatePlanTotals()"></td>
+    <td style="padding:9px 10px;text-align:right;font-family:'DM Mono',monospace;font-size:13px;color:${diffColorIng};" id="pd-diff-ing">${ingDiff>=0?'+':''}${fmt(ingDiff)}</td>
+  </tr>`;
+
+  // Section header
+  tb += `<tr><td colspan="4" style="background:var(--gl);padding:7px 16px;font-size:10px;font-weight:600;color:var(--tm);letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;">Gastos operativos</td></tr>`;
+
+  GASTOS.forEach(g => {
+    const actual = Math.round(tot.gl[g.k]);
+    const plan = planData[g.k] !== undefined ? planData[g.k] : actual;
+    const diff = plan - actual;
+    const diffColor = diff > 0 ? '#d93636' : diff < 0 ? '#1a9e6e' : '#6b6b68';
+    tb += `<tr style="border-bottom:1px solid var(--bd);">
+      <td style="padding:8px 16px;font-size:13px;color:var(--tx);">${g.l}</td>
+      <td style="padding:8px 10px;text-align:right;font-family:'DM Mono',monospace;font-size:13px;color:var(--tm);">${actual>0?fmt(actual):'—'}</td>
+      <td style="padding:4px 6px;text-align:right;"><input type="number" value="${plan}" style="width:120px;border:1px solid #d4a800;border-radius:6px;padding:6px 8px;font-family:'DM Mono',monospace;font-size:13px;text-align:right;background:#fffde8;outline:none;" oninput="planData['${g.k}']=+this.value;updatePlanTotals()"></td>
+      <td style="padding:8px 10px;text-align:right;font-family:'DM Mono',monospace;font-size:13px;color:${diffColor};" id="pd-diff-${g.k}">${diff>=0?'+':''}${fmt(diff)}</td>
+    </tr>`;
+  });
+  document.getElementById('plan-tbody').innerHTML = tb;
+  updatePlanTotals();
+}
+
+function updatePlanTotals() {
+  const data = currentAnalysisData;
+  if(!data) return;
+  const tot = allTot(data);
+  const mult = parseFloat(document.getElementById('mult').value);
+  const capex = N(document.getElementById('capex').value);
+
+  const planIng = planData['ing'] !== undefined ? planData['ing'] : Math.round(tot.ing);
+  const planGas = GASTOS.reduce((s,g) => s + (planData[g.k]!==undefined ? planData[g.k] : Math.round(tot.gl[g.k])), 0);
+  const planEbt = planIng - planGas;
+  const planPrice = planEbt * mult - capex;
+  const actEbt = tot.ebt;
+  const actPrice = actEbt * mult - capex;
+  const planMrg = planIng > 0 ? (planEbt/planIng*100).toFixed(1) : '—';
+
+  // Update diff cells
+  const ingDiff = planIng - Math.round(tot.ing);
+  const ingDiffEl = document.getElementById('pd-diff-ing');
+  if(ingDiffEl) { ingDiffEl.textContent=(ingDiff>=0?'+':'')+fmt(ingDiff); ingDiffEl.style.color=ingDiff>=0?'#1a9e6e':'#d93636'; }
+
+  GASTOS.forEach(g => {
+    const actual = Math.round(tot.gl[g.k]);
+    const plan = planData[g.k] !== undefined ? planData[g.k] : actual;
+    const diff = plan - actual;
+    const el = document.getElementById('pd-diff-'+g.k);
+    if(el) { el.textContent=(diff>=0?'+':'')+fmt(diff); el.style.color=diff>0?'#d93636':diff<0?'#1a9e6e':'#6b6b68'; }
+  });
+
+  // KPIs
+  document.getElementById('plan-kpis').innerHTML = `
+    <div class="kc"><div class="kl">EBITDA actual</div><div class="kv">${fmt(actEbt,true)}</div><div class="ks">Precio ${fmt(actPrice,true)}</div></div>
+    <div class="kc"><div class="kl">EBITDA proyectado</div><div class="kv" style="color:${planEbt>=actEbt?'#1a9e6e':'#d93636'}">${fmt(planEbt,true)}</div><div class="ks">Margen ${planMrg}%</div></div>
+    <div class="kc"><div class="kl">Precio proyectado</div><div class="kv">${fmt(planPrice,true)}</div><div class="ks">Mult. ${mult.toFixed(1)}× − CAPEX</div></div>
+    <div class="kc ${planEbt>=actEbt?'hl':''}"><div class="kl">Variación EBITDA</div><div class="kv">${planEbt-actEbt>=0?'+':''}${fmt(planEbt-actEbt,true)}</div><div class="ks">${((planEbt-actEbt)/Math.abs(actEbt)*100).toFixed(1)}% vs actual</div></div>
+  `;
+
+  // Chart
+  if(cpChart) cpChart.destroy();
+  cpChart = new Chart(document.getElementById('cp'), {
+    type: 'bar',
+    data: {
+      labels: ['Ingresos','Gastos','EBITDA','Precio venta'],
+      datasets: [
+        { label:'Actual', data:[Math.round(tot.ing), Math.round(tot.gas), Math.round(actEbt), Math.round(actPrice)], backgroundColor:'rgba(154,153,158,.5)', borderRadius:4 },
+        { label:'Proyectado', data:[planIng, planGas, planEbt, Math.round(planPrice)], backgroundColor:'rgba(212,168,0,.8)', borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:true,position:'top',labels:{font:{size:11,family:'DM Mono, monospace'}}}, tooltip:{callbacks:{label:c=>' '+fmt(c.raw,true)}} },
+      scales:{
+        y:{ticks:{callback:v=>fmt(v,true),font:{size:10,family:'DM Mono, monospace'}},grid:{color:'rgba(0,0,0,.04)'}},
+        x:{ticks:{font:{size:10,family:'DM Mono, monospace'}},grid:{display:false}}
+      }
+    }
+  });
+
+  // Memo
+  const today = new Date().toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('plan-memo').innerHTML = `
+    <p><strong>${data.clubName} · Plan comprador ${today}</strong></p><br>
+    <p>EBITDA actual: <strong>${fmt(actEbt)}</strong> → precio de venta actual: <strong>${fmt(actPrice,true)}</strong> (${mult.toFixed(1)}×).</p><br>
+    <p>Con las nuevas condiciones del comprador, el EBITDA proyectado es <strong>${fmt(planEbt)}</strong> (margen ${planMrg}%), lo que equivale a un precio proyectado de <strong>${fmt(planPrice,true)}</strong>. La variación respecto al EBITDA actual es de <strong>${planEbt-actEbt>=0?'+':''}${fmt(planEbt-actEbt,true)}</strong>.</p>`;
+}
+
+function copyPlanMemo() {
+  navigator.clipboard.writeText(document.getElementById('plan-memo').innerText).then(()=>{
+    const b=event.target; b.textContent='✓ Copiado'; setTimeout(()=>b.textContent='Copiar resumen plan',2000);
+  }).catch(()=>{});
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────
