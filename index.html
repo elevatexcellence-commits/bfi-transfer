@@ -422,9 +422,10 @@ const GASTOS = [
   {k:'otros',      l:'Otros gastos'},
 ];
 
+// Últimos 12 meses cerrados: el último mes es el mes ANTERIOR al actual
 function buildMonths(){
   const now=new Date(), months=[];
-  for(let i=11;i>=0;i--){
+  for(let i=12;i>=1;i--){
     const d=new Date(now.getFullYear(),now.getMonth()-i,1);
     months.push(MONTH_NAMES[d.getMonth()]+' '+String(d.getFullYear()).slice(2));
   }
